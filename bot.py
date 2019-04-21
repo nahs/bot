@@ -4,12 +4,22 @@ from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import Process 
 import websocket
 import json
-import async
 ws = websocket.WebSocket()
-ws.connect("wss://o7.click/api/ws?key=qhs0uaf9fa") 
+ws.connect("wss://o7.click/api/ws?key=qhs0uaf9fa")
+
 created_bots = {} 
 
-pool = ThreadPool(8) 
+pool = ThreadPool(8)
+
+'''[inst]
+
+[__init__(ид бота, логин, пароль) - ,
+main() - бесконечное создание процессов для обновления сообщнений,
+first_mess() - собирает всех пользователей и игнорит их, если после включения бота, они не пишут,
+send_to_json(id) - пакует данные в json и отправляет на сервер,
+update() - делает тоже самое, что и first_mess, но не игнорит пользователей,
+send_to_client(js) - отправляет ответы от сервера в инстаграм]
+'''
 class inst(): 
 	from instabot import Bot 
 	def __init__(self, id, username, password):
@@ -17,12 +27,12 @@ class inst():
 		self.id = id 
 		self.username = username 
 		self.password = password 
-		self.users = [] 
+		self.users = [] # id пользователей
 		self.usernames = [] 
 		self.fullnames = [] 
-		self.messages = [] 
+		self.messages = [] # messages и old_messages нужны для того, чтобы не спамить серверу одинаковые сообщения пользователей
 		self.old_messages = [] 
-		self.skip_users = [] 
+		self.skip_users = [] # для игнора пользователей, которые писали до включения бота
 		self.skip_messages = [] 
 		self.bot = Bot() 
 		self.bot.login(username = self.username, password = self.password) 
@@ -34,10 +44,10 @@ class inst():
 		while True: 
 			update() 
 			pool.map(sends_message, users) 
-			time.sleep(2) 
+			time.sleep(3) 
  
 	def first_mess(self): 
-		all_mess = self.bot.get_messages() 
+		all_mess = self.bot.get_messages() # парсит сообщения из деректа и собирает все данные о пользователях
 		for i in range(len(all_mess['inbox']['threads'])): 
 			try: 
 				user_id = all_mess['inbox']['threads'][i]['items'][-1]['user_id'] 
@@ -71,7 +81,7 @@ class inst():
 			send_to_server(js) 
  
 	def update(self): 
-		all_mess = self.bot.get_messages() 
+		all_mess = self.bot.get_messages() # парсит сообщения из деректа и собирает все данные о пользователях
 		for i in range(len(all_mess['inbox']['threads'])): 
 			try:  
 				user_id = all_mess['inbox']['threads'][i]['items'][-1]['user_id'] 
@@ -112,9 +122,13 @@ class inst():
 			media = str(js['media'])
 			self.bot.send.media(media, user_id)
  
- 
+'''[send_to_server]
+
+[send_to_server(js) - отправляет данные от бота серверу, 
+recv - прослушивание порта на новые сообщения]
+'''
 def send_to_server(js): 
-	ws.send(js)
+	ws.send(js)`
  
 def recv():
 	print('recv')
