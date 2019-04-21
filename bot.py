@@ -4,11 +4,11 @@ from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import Process 
 import websocket
 import json
+
+
 ws = websocket.WebSocket()
 ws.connect("wss://o7.click/api/ws?key=qhs0uaf9fa")
-
 created_bots = {} 
-
 pool = ThreadPool(8)
 
 '''[inst]
@@ -117,9 +117,9 @@ class inst():
 			user_id = str(js['user']) 
 			message = str(js['text']) 
 			self.bot.send_message(message, user_id) 
-		elif js['type'] == 'media': 
+		elif js['type'] == 'image': 
 			user_id = str(js['user']) 
-			media = str(js['media'])
+			media = str(js['url'])
 			self.bot.send.media(media, user_id)
  
 '''[send_to_server]
@@ -127,33 +127,35 @@ class inst():
 [send_to_server(js) - отправляет данные от бота серверу, 
 recv - прослушивание порта на новые сообщения]
 '''
-def send_to_server(js): 
-	ws.send(js)`
- 
+def send_to_server(js):
+	socket.send(js)
+
 def recv():
 	print('recv')
 	while True:
 		global created_bots
-		print() 
-		result = ws.recv()
-		if result:
-			js = json.loads(result)
-			print(js)
-			if js['type'] == 'create_bot':
-				proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
-				proc.start() 
-				proc.join() 
-				created_bots[js['bot']] = [js['login'], proc.name(), proc] 
-			elif js['type'] == 'update_bot':
-				kill(created_bots[js['bot']][1])
-				proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
-				proc.start() 
-				proc.join() 
-				created_bots[js['bot']] = [js['login'], proc.name(), proc]
-			elif js['type'] == 'text' or js['type'] == 'media':  
-				created_bots[js['bot']][2].send_to_client(js)
+		try:
+			result = ws.recv()
+			if result:
+				print(result)
+				js = json.loads(result)
+				print(js)
+				if js['type'] == 'create_bot':
+					proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
+					proc.start() 
+					proc.join() 
+					created_bots[js['bot']] = [js['login'], proc.name(), proc] 
+				elif js['type'] == 'update_bot':
+					kill(created_bots[js['bot']][1])
+					proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
+					proc.start() 
+					proc.join() 
+					created_bots[js['bot']] = [js['login'], proc.name(), proc]
+				elif js['type'] == 'text' or js['type'] == 'media':  
+					created_bots[js['bot']][2].send_to_client(js)
+		except:
+			print('except')
 
- 
 forever = Process(target=recv) 
 forever.start()
 forever.join()
