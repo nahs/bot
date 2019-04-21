@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*- 
-from instabot import Bot 
 import time 
 from multiprocessing.dummy import Pool as ThreadPool 
 from multiprocessing import Process 
-import websocket 
-import async 
-ws = websocket.WebSocket() 
-ws = create_connection("wss://bot-crm.ru/api/ws?key=32892839283923892832938") 
+import websocket
+import async
+ws = websocket.WebSocket()
+ws.connect("wss://o7.click/api/ws?key=qhs0uaf9fa") 
 created_bots = {} 
- 
- 
-all_messages = 0 
- 
+
 pool = ThreadPool(8) 
 class inst(): 
 	from instabot import Bot 
-	def __init__(self, id, username, password): 
+	def __init__(self, id, username, password):
+		print('begin', id, username, password)
 		self.id = id 
 		self.username = username 
 		self.password = password 
@@ -68,7 +65,7 @@ class inst():
 		if message != self.old_messages[user_id]: 
 			username = self.usernames[users.index(user_id)] 
 			fullname = self.fullnames[users.index(user_id)] 
-			js = {“type”: “text”, “text” : “message”, “bot”: self.id, “user”: “user_id”, “info”: {“nickname”:”username”,”name”:”fullname”}} 
+			js = {'type': 'text', 'text' : message, 'bot': self.id, 'user': user_id, 'info': {'nickname':username,'name':fullname}} 
 			self.old_messages[user_id] = message 
 			send_to_server(js) 
  
@@ -111,28 +108,33 @@ class inst():
 			self.bot.send_message(message, user_id) 
 		elif js['type'] == 'media': 
 			user_id = str(js['user']) 
-			media = str(js['media']) 
+			media = str(js['media'])
+			self.bot.send.media(media, user_id)
  
  
 def send_to_server(js): 
-	websocket.send(js) 
+	ws.send(js)
  
-def recv(): 
+def recv():
+	print('recv')
 	global created_bots 
 	js =  ws.recv() 
-	if js['type'] == 'create_bot': 
+	print(js)
+	if js['type'] == 'create_bot':
 		proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
 		proc.start() 
-   		proc.join() 
-   		created_bots[js['bot']] = [js['login'], proc.name()] 
-   	elif js['type'] == 'update_bot': 
+		proc.join() 
+		created_bots[js['bot']] = [js['login'], proc.name(), proc] 
+	elif js['type'] == 'update_bot':
+		kill(created_bots[js['bot']][1])
+		proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
+		proc.start() 
+		proc.join() 
+		created_bots[js['bot']] = [js['login'], proc.name(), proc]
+	elif js['type'] == 'text' or js['type'] == 'media':  
+		created_bots[js['bot']][2].send_to_client(js)
+
  
-   	elif js['type'] == 'text':  
-   		created_bots[js['bot']][-1][1] 
- 
- 
-# first_mess() 
-# while True: 
-# 	update() 
-# 	pool.map(sends_message, users) 
-# 	time.sleep(2) 
+forever = Process(target=recv) 
+forever.start()
+forever.join()
