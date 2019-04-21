@@ -3,6 +3,7 @@ import time
 from multiprocessing.dummy import Pool as ThreadPool 
 from multiprocessing import Process 
 import websocket
+import json
 import async
 ws = websocket.WebSocket()
 ws.connect("wss://o7.click/api/ws?key=qhs0uaf9fa") 
@@ -65,7 +66,7 @@ class inst():
 		if message != self.old_messages[user_id]: 
 			username = self.usernames[users.index(user_id)] 
 			fullname = self.fullnames[users.index(user_id)] 
-			js = {'type': 'text', 'text' : message, 'bot': self.id, 'user': user_id, 'info': {'nickname':username,'name':fullname}} 
+			js = json.dumps({'type': 'text', 'text' : message, 'bot': self.id, 'user': user_id, 'info': {'nickname':username,'name':fullname}})
 			self.old_messages[user_id] = message 
 			send_to_server(js) 
  
@@ -117,22 +118,26 @@ def send_to_server(js):
  
 def recv():
 	print('recv')
-	global created_bots 
-	js =  ws.recv() 
-	print(js)
-	if js['type'] == 'create_bot':
-		proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
-		proc.start() 
-		proc.join() 
-		created_bots[js['bot']] = [js['login'], proc.name(), proc] 
-	elif js['type'] == 'update_bot':
-		kill(created_bots[js['bot']][1])
-		proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
-		proc.start() 
-		proc.join() 
-		created_bots[js['bot']] = [js['login'], proc.name(), proc]
-	elif js['type'] == 'text' or js['type'] == 'media':  
-		created_bots[js['bot']][2].send_to_client(js)
+	while True:
+		global created_bots
+		print() 
+		result = ws.recv()
+		if result:
+			js = json.loads(result)
+			print(js)
+			if js['type'] == 'create_bot':
+				proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
+				proc.start() 
+				proc.join() 
+				created_bots[js['bot']] = [js['login'], proc.name(), proc] 
+			elif js['type'] == 'update_bot':
+				kill(created_bots[js['bot']][1])
+				proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
+				proc.start() 
+				proc.join() 
+				created_bots[js['bot']] = [js['login'], proc.name(), proc]
+			elif js['type'] == 'text' or js['type'] == 'media':  
+				created_bots[js['bot']][2].send_to_client(js)
 
  
 forever = Process(target=recv) 
