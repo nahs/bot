@@ -10,7 +10,7 @@ ws = create_connection("wss://o7.click/api/ws?key=qhs0uaf9fa")
 created_bots = {} 
 pool = ThreadPool(8)
 
-'''[inst]
+'''[Bot]
 [__init__(ид бота, логин, пароль) - ,
 main() - бесконечное создание процессов для обновления сообщнений,
 first_mess() - собирает всех пользователей и игнорит их, если после включения бота, они не пишут,
@@ -120,7 +120,7 @@ class inst():
 			media = str(js['url'])
 			self.bot.send.media(media, user_id)
  
-'''[send_to_server]
+'''[Server]
 [send_to_server(json) - отправляет данные от бота серверу, 
 recv - прослушивание порта на новые сообщения,
 create_bot(json) - при получении команды create_bot создает тред для нового бота,
