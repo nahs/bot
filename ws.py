@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*- 
 import time 
 from multiprocessing.dummy import Pool as ThreadPool 
-from kthread import Kthread
+from kthread import KThread
 from websocket import create_connection
+from multiprocessing import Process
 import json
-
+from instabot import Bot
 ws = create_connection("wss://o7.click/api/ws?key=qhs0uaf9fa")
 
 created_bots = {} 
@@ -19,7 +20,6 @@ update() - делает тоже самое, что и first_mess, но не и�
 send_to_client(js) - отправляет ответы от сервера в инстаграм]
 '''
 class inst(): 
-	from instabot import Bot 
 	def __init__(self, id, username, password):
 		print('begin', id, username, password)
 		self.id = id 
@@ -145,22 +145,24 @@ def recvs():
 					update_bot(js)
 				elif js['type'] == 'text' or js['type'] == 'media':
 					created_bots[js['bot']][2].send_to_client(js)
+		print(created_bots)
 
 def create_bot(js):
 	global created_bots
-	proc = Kthread(target=inst, args=(js["bot"], js["login"], js["password"])) 
-	proc.start()
-	created_bots[js['bot']] = [js['login'], proc.name(), proc] 
+	if created_bots.get(js["bot"]) == None:
+		proc = Process(target=inst, args=(js["bot"], js["login"], js["pass"])) 
+		proc.start()
+		created_bots[js['bot']] = [js['login'], proc.name(), proc]
 
 def update_bot(js):
 	global created_bots
 	try:
-		kill(created_bots[js['bot']][1])
-		proc = Kthread(target=inst, args=(js["bot"], js["login"], js["password"])) 
+		proc.terminate()
+		proc = Process(target=inst, args=(js["bot"], js["login"], js["pass"])) 
 		proc.start()
 		created_bots[js['bot']] = [js['login'], proc]
 	except:
-		proc = Kthread(target=inst, args=(js["bot"], js["login"], js["password"])) 
+		proc = Process(target=inst, args=(js["bot"], js["login"], js["pass"])) 
 		proc.start()
 		created_bots[js['bot']] = [js['login'], proc]
 
@@ -170,7 +172,7 @@ def pings():
 		ws.send('PING')
 		time.sleep(15)
 
-pig = Kthread(target=pings)
-rec = Kthread(target=recvs)
+pig = KThread(target=pings)
+rec = KThread(target=recvs)
 pig.start()
 rec.start()
