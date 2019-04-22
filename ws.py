@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*- 
 import time 
 from multiprocessing.dummy import Pool as ThreadPool 
-from multiprocessing import Process 
-import websocket
+from kthread import Kthread
+from websocket import create_connection
 import json
 
+ws = create_connection("wss://o7.click/api/ws?key=qhs0uaf9fa")
 
-ws = websocket.WebSocket()
-ws.connect("wss://o7.click/api/ws?key=qhs0uaf9fa")
 created_bots = {} 
 pool = ThreadPool(8)
 
 '''[inst]
-
 [__init__(ид бота, логин, пароль) - ,
 main() - бесконечное создание процессов для обновления сообщнений,
 first_mess() - собирает всех пользователей и игнорит их, если после включения бота, они не пишут,
@@ -123,39 +121,56 @@ class inst():
 			self.bot.send.media(media, user_id)
  
 '''[send_to_server]
-
-[send_to_server(js) - отправляет данные от бота серверу, 
-recv - прослушивание порта на новые сообщения]
+[send_to_server(json) - отправляет данные от бота серверу, 
+recv - прослушивание порта на новые сообщения,
+create_bot(json) - при получении команды create_bot создает тред для нового бота,
+update_bot(json) - перезапускает тред бота с новыми данными,
+pings() - отправляет пинг-фреймы серверу, чтобы соединение не прервалось]
 '''
 def send_to_server(js):
-	socket.send(js)
+	ws.send(js)
 
-def recv():
-	print('recv')
+def recvs():
 	while True:
 		global created_bots
-		try:
-			result = ws.recv()
-			if result:
-				print(result)
-				js = json.loads(result)
-				print(js)
+		result =  ws.recv()
+		print(result)
+		if result and result != 'PONG':
+			js = json.loads(result)
+			print(js)
+			if js.get('error') == None:
 				if js['type'] == 'create_bot':
-					proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
-					proc.start() 
-					proc.join() 
-					created_bots[js['bot']] = [js['login'], proc.name(), proc] 
+					create_bot(js)
 				elif js['type'] == 'update_bot':
-					kill(created_bots[js['bot']][1])
-					proc = Process(target=inst, args=(js["bot"], js["login"], js["password"])) 
-					proc.start() 
-					proc.join() 
-					created_bots[js['bot']] = [js['login'], proc.name(), proc]
-				elif js['type'] == 'text' or js['type'] == 'media':  
+					update_bot(js)
+				elif js['type'] == 'text' or js['type'] == 'media':
 					created_bots[js['bot']][2].send_to_client(js)
-		except:
-			print('except')
 
-forever = Process(target=recv) 
-forever.start()
-forever.join()
+def create_bot(js):
+	global created_bots
+	proc = Kthread(target=inst, args=(js["bot"], js["login"], js["password"])) 
+	proc.start()
+	created_bots[js['bot']] = [js['login'], proc.name(), proc] 
+
+def update_bot(js):
+	global created_bots
+	try:
+		kill(created_bots[js['bot']][1])
+		proc = Kthread(target=inst, args=(js["bot"], js["login"], js["password"])) 
+		proc.start()
+		created_bots[js['bot']] = [js['login'], proc]
+	except:
+		proc = Kthread(target=inst, args=(js["bot"], js["login"], js["password"])) 
+		proc.start()
+		created_bots[js['bot']] = [js['login'], proc]
+
+def pings():
+	while True:
+		print('PING')
+		ws.send('PING')
+		time.sleep(15)
+
+pig = Kthread(target=pings)
+rec = Kthread(target=recvs)
+pig.start()
+rec.start()
